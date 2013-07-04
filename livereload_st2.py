@@ -73,6 +73,10 @@ class CompassThread(threading.Thread):
     def __init__(self, filename,LivereloadFactory):
       self.dirname = os.path.dirname(filename)
       self.filename = filename.replace('.scss','.css').replace('.sass','.css')
+      self.source=filename
+      self.sourcemin=self.source.replace('.scss',".min.scss").replace('.sass','.min.sass')
+      self.compile='compass compile ' + self.dirname.replace('\\','/') +' -c '+self.dirname.replace('\\','/')+'/config.rb --force'
+      self.compilemin='compass compile ' + self.dirname.replace('\\','/') +' -c '+self.dirname.replace('\\','/')+'/config.min.rb --force'
       self.LivereloadFactory = LivereloadFactory
       self.stdout = None
       self.stderr = None
@@ -80,15 +84,27 @@ class CompassThread(threading.Thread):
 
     def run(self):
       global LivereloadFactory
-      print 'compass compile ' + self.dirname
 
       # autocreate config.rb for compass
       if not os.path.exists(os.path.join(self.dirname, "config.rb")):
         print "Generating config.rb"
         shutil.copy(os.path.join(sublime.packages_path(), "LiveReload","assets","config.rb"), self.dirname)
 
-      # compass compile
-      p = subprocess.Popen(['compass compile ' + self.dirname.replace('\\','/')],shell=True,  stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT )
+      # autocreate config.min.rb for compass
+      if not os.path.exists(os.path.join(self.dirname, "config.min.rb")):
+        print "Generating config.min.rb"
+        shutil.copy(os.path.join(sublime.packages_path(), "LiveReload","assets","config.min.rb"), self.dirname)
+
+      # compass compile min
+      print self.compilemin
+      shutil.copy(self.source,self.sourcemin)
+      p = subprocess.Popen([self.compilemin],shell=True,  stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT )
+      if p.stdout.read() :
+        os.remove(self.sourcemin)
+      
+      # compass compile 
+      print self.compile
+      p = subprocess.Popen([self.compile],shell=True,  stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT )
       if p.stdout.read() :
         self.LivereloadFactory.send_all(json.dumps(["refresh", {
               "path": self.filename.replace('\\','/'),
